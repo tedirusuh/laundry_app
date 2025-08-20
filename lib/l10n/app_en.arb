@@ -1,0 +1,9 @@
+{
+  "@@locale": "en",
+  "pengaturan": "Settings",
+  "modeGelap": "Dark Mode",
+  "gantiEmail": "Change Email",
+  "gantiPassword": "Change Password",
+  "notifikasi": "Notifications",
+  "bahasa": "Language"
+}
