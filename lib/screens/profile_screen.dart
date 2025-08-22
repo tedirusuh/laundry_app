@@ -1,7 +1,6 @@
 // lib/screens/profile_screen.dart
 import 'dart:async';
 import 'package:app_laundry/models/user_model.dart';
-import 'package:app_laundry/screens/admin_screen.dart';
 import 'package:app_laundry/screens/edit_profile_screen.dart';
 import 'package:app_laundry/screens/settings_screen.dart';
 import 'package:app_laundry/screens/view_profile_picture_screen.dart';
@@ -182,28 +181,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
           ),
           const SizedBox(height: 32),
 
-          // --- KODE TOMBOL ADMIN DITEMPATKAN DI SINI ---
-          // Tombol ini hanya akan muncul jika peran pengguna adalah 'admin'
-          if (_profileUser.role == 'admin')
-            Padding(
-              padding: const EdgeInsets.only(bottom: 16.0),
-              child: ElevatedButton.icon(
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: Theme.of(context).primaryColor,
-                  foregroundColor: Colors.white,
-                  padding: const EdgeInsets.symmetric(vertical: 12),
-                ),
-                onPressed: () {
-                  Navigator.push(
-                    context,
-                    MaterialPageRoute(
-                        builder: (context) => const AdminScreen()),
-                  );
-                },
-                icon: const Icon(Icons.admin_panel_settings),
-                label: const Text('Buka Panel Admin'),
-              ),
-            ),
+          // --- TOMBOL ADMIN SUDAH DIHAPUS DARI SINI ---
 
           _buildInfoCard(context, title: "Detail Informasi", children: [
             _buildInfoRow(

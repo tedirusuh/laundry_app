@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "55334484194",
+    "project_id": "laundry-express-app-97ddd",
+    "storage_bucket": "laundry-express-app-97ddd.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:55334484194:android:31e55686b9ce6dc427c6bb",
+        "android_client_info": {
+          "package_name": "com.example.app_laundry"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyDkIQ7eyg4mzWQaeujmB0ty1McuKj0E_Pc"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

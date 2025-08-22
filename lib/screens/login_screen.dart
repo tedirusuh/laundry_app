@@ -9,6 +9,9 @@ import 'package:app_laundry/screens/home_screen.dart';
 import 'package:app_laundry/utils/session_manager.dart';
 import 'package:app_laundry/screens/profile_screen.dart';
 
+// --- 1. TAMBAHKAN IMPORT INI ---
+import 'package:firebase_messaging/firebase_messaging.dart';
+
 class LoginScreen extends StatefulWidget {
   const LoginScreen({super.key});
   @override
@@ -21,6 +24,33 @@ class _LoginScreenState extends State<LoginScreen> {
   final _passwordController = TextEditingController();
   bool _isLoading = false;
   bool _obscurePassword = true;
+
+  // --- 2. TAMBAHKAN FUNGSI BARU UNTUK MENYIMPAN TOKEN ---
+  Future<void> _updateFcmToken(String apiToken) async {
+    try {
+      // Minta izin notifikasi dari pengguna
+      await FirebaseMessaging.instance.requestPermission();
+
+      // Dapatkan token unik perangkat ini
+      final fcmToken = await FirebaseMessaging.instance.getToken();
+
+      if (fcmToken != null) {
+        // Kirim token ke backend Laravel untuk disimpan
+        await http.post(
+          Uri.parse('$API_URL/user/update-fcm-token'), // Endpoint baru
+          headers: {
+            'Authorization': 'Bearer $apiToken', // Gunakan token login
+            'Accept': 'application/json',
+            'Content-Type': 'application/json',
+          },
+          body: json.encode({'fcm_token': fcmToken}),
+        );
+      }
+    } catch (e) {
+      // Jika gagal, cetak error tapi jangan hentikan proses login
+      debugPrint("Gagal mengupdate FCM token: $e");
+    }
+  }
 
   void _loginUser() async {
     if (!_formKey.currentState!.validate()) return;
@@ -48,8 +78,10 @@ class _LoginScreenState extends State<LoginScreen> {
         await SessionManager.saveSession(user, token);
         UserSession.token = token;
 
+        // --- 3. PANGGIL FUNGSI UNTUK MENGIRIM TOKEN SETELAH LOGIN SUKSES ---
+        await _updateFcmToken(token);
+
         if (mounted) {
-          // --- PERBAIKAN UTAMA: Arahkan SEMUA PENGGUNA ke HomeScreen ---
           Navigator.of(context).pushAndRemoveUntil(
             MaterialPageRoute(builder: (context) => HomeScreen(user: user)),
             (route) => false,

@@ -10,7 +10,6 @@ environment:
 dependencies:
   flutter:
     sdk: flutter
-  # --- INI ADALAH FORMAT YANG BENAR ---
   flutter_localizations:
     sdk: flutter
 
@@ -23,15 +22,21 @@ dependencies:
   shared_preferences: ^2.5.3
   font_awesome_flutter: ^10.9.0
   url_launcher: ^6.3.2
+  firebase_core: ^3.1.1
+  firebase_messaging: ^15.0.1
+
 
 dev_dependencies:
   flutter_test:
     sdk: flutter
   flutter_lints: ^5.0.0
+  
+  # --- TAMBAHAN BARU ADA DI SINI ---
+  flutter_launcher_icons: ^0.13.1
+
 
 flutter:
   generate: true
-
   uses-material-design: true
   assets:
     - assets/
@@ -43,4 +48,9 @@ flutter:
     - assets/timbang.jpg
     - assets/Karpet.jpg
 
-    
+# --- BLOK KONFIGURASI BARU UNTUK IKON ---
+flutter_launcher_icons:
+  android: true
+  ios: true
+  # Pastikan Anda sudah memiliki file ikon di lokasi ini
+  image_path: "assets/assets/icons/OIP (1).jpeg"

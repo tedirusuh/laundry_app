@@ -24,7 +24,8 @@ class LaundryDetailScreen extends StatelessWidget {
               background: Image.asset(
                 laundry.imagePath,
                 fit: BoxFit.cover,
-                color: Colors.black.withOpacity(0.4),
+                color:
+                    const Color.fromARGB(255, 255, 254, 254).withOpacity(0.4),
                 colorBlendMode: BlendMode.darken,
               ),
             ),

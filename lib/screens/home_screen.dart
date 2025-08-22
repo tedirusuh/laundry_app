@@ -1,11 +1,15 @@
 // lib/screens/home_screen.dart
+import 'dart:convert';
 import 'package:app_laundry/models/laundry_model.dart';
 import 'package:app_laundry/models/user_model.dart';
+import 'package:app_laundry/screens/admin_dashboard_screen.dart'; // <-- Pastikan import ini ada
 import 'package:app_laundry/screens/laundry_detail_screen.dart';
 import 'package:app_laundry/screens/orders_screen.dart';
 import 'package:app_laundry/screens/profile_screen.dart';
+import 'package:app_laundry/utils/constants.dart';
 import 'package:flutter/material.dart';
-import 'package:url_launcher/url_launcher.dart'; // <-- PASTIKAN IMPORT INI ADA
+import 'package:http/http.dart' as http;
+import 'package:url_launcher/url_launcher.dart';
 
 class HomeScreen extends StatefulWidget {
   final User user;
@@ -17,19 +21,59 @@ class HomeScreen extends StatefulWidget {
 
 class _HomeScreenState extends State<HomeScreen> {
   int _selectedIndex = 0;
-  late List<Widget> _widgetOptions;
+
+  // State dan fungsi untuk tagihan dipindahkan ke sini
+  double _totalBilling = 0.0;
+  bool _isBillingLoading = true;
 
   @override
   void initState() {
     super.initState();
-    _widgetOptions = <Widget>[
-      HomeScreenContent(user: widget.user),
-      OrdersScreen(user: widget.user),
-      ProfileScreen(user: widget.user),
-    ];
+    // Hanya ambil data tagihan jika yang login bukan admin
+    if (widget.user.role != 'admin') {
+      _fetchUserBilling();
+    }
+  }
+
+  Future<void> _fetchUserBilling() async {
+    if (!mounted) return;
+    setState(() => _isBillingLoading = true);
+
+    if (UserSession.token == null) {
+      if (mounted) setState(() => _isBillingLoading = false);
+      return;
+    }
+
+    try {
+      final response = await http.get(
+        Uri.parse('$API_URL/user/billing-total'),
+        headers: {
+          'Authorization': 'Bearer ${UserSession.token}',
+          'Accept': 'application/json',
+        },
+      );
+      if (mounted) {
+        if (response.statusCode == 200) {
+          final responseData = json.decode(response.body);
+          setState(() {
+            _totalBilling = (responseData['total_billing'] as num).toDouble();
+          });
+        }
+      }
+    } catch (e) {
+      debugPrint("Error fetching billing: $e");
+    } finally {
+      if (mounted) {
+        setState(() => _isBillingLoading = false);
+      }
+    }
   }
 
   void _onItemTapped(int index) {
+    // Muat ulang data tagihan hanya jika pengguna biasa menekan tab Home
+    if (widget.user.role != 'admin' && index == 0) {
+      _fetchUserBilling();
+    }
     setState(() {
       _selectedIndex = index;
     });
@@ -37,28 +81,55 @@ class _HomeScreenState extends State<HomeScreen> {
 
   @override
   Widget build(BuildContext context) {
+    bool isAdmin = widget.user.role == 'admin';
+
+    // Daftar halaman/tab untuk pengguna biasa
+    final List<Widget> userWidgetOptions = <Widget>[
+      HomeScreenContent(
+        user: widget.user,
+        totalBilling: _totalBilling,
+        isBillingLoading: _isBillingLoading,
+        onRefresh: _fetchUserBilling,
+      ),
+      OrdersScreen(user: widget.user),
+      ProfileScreen(user: widget.user),
+    ];
+
+    // Daftar halaman/tab untuk admin
+    final List<Widget> adminWidgetOptions = <Widget>[
+      AdminDashboardScreen(
+          user: widget.user), // Halaman pertama adalah Dashboard
+      OrdersScreen(user: widget.user),
+      ProfileScreen(user: widget.user),
+    ];
+
+    // Tentukan item Bottom Navigation Bar yang sesuai
+    final List<BottomNavigationBarItem> navBarItems = [
+      BottomNavigationBarItem(
+        icon: Icon(isAdmin ? Icons.dashboard_outlined : Icons.home_outlined),
+        activeIcon: Icon(isAdmin ? Icons.dashboard : Icons.home),
+        label: isAdmin ? 'Dashboard' : 'Home',
+      ),
+      const BottomNavigationBarItem(
+        icon: Icon(Icons.assignment_outlined),
+        activeIcon: Icon(Icons.assignment),
+        label: 'Pesanan',
+      ),
+      const BottomNavigationBarItem(
+        icon: Icon(Icons.person_outline),
+        activeIcon: Icon(Icons.person),
+        label: 'Profil',
+      ),
+    ];
+
     return Scaffold(
       body: Center(
-        child: _widgetOptions.elementAt(_selectedIndex),
+        child: isAdmin
+            ? adminWidgetOptions.elementAt(_selectedIndex)
+            : userWidgetOptions.elementAt(_selectedIndex),
       ),
       bottomNavigationBar: BottomNavigationBar(
-        items: const <BottomNavigationBarItem>[
-          BottomNavigationBarItem(
-            icon: Icon(Icons.home_outlined),
-            activeIcon: Icon(Icons.home),
-            label: 'Home',
-          ),
-          BottomNavigationBarItem(
-            icon: Icon(Icons.assignment_outlined),
-            activeIcon: Icon(Icons.assignment),
-            label: 'Pesanan',
-          ),
-          BottomNavigationBarItem(
-            icon: Icon(Icons.person_outline),
-            activeIcon: Icon(Icons.person),
-            label: 'Profil',
-          ),
-        ],
+        items: navBarItems,
         currentIndex: _selectedIndex,
         onTap: _onItemTapped,
       ),
@@ -66,9 +137,22 @@ class _HomeScreenState extends State<HomeScreen> {
   }
 }
 
+// ================================================================
+// KODE UNTUK TAMPILAN PENGGUNA BIASA (TIDAK PERLU DIUBAH)
+// ================================================================
 class HomeScreenContent extends StatefulWidget {
   final User user;
-  const HomeScreenContent({super.key, required this.user});
+  final double totalBilling;
+  final bool isBillingLoading;
+  final Future<void> Function() onRefresh;
+
+  const HomeScreenContent({
+    super.key,
+    required this.user,
+    required this.totalBilling,
+    required this.isBillingLoading,
+    required this.onRefresh,
+  });
 
   @override
   State<HomeScreenContent> createState() => _HomeScreenContentState();
@@ -124,18 +208,21 @@ class _HomeScreenContentState extends State<HomeScreenContent> {
   void initState() {
     super.initState();
     filteredLaundries = allLaundries;
-    _searchController.addListener(() {
-      final query = _searchController.text.toLowerCase();
-      setState(() {
-        filteredLaundries = allLaundries
-            .where((l) => l.title.toLowerCase().contains(query))
-            .toList();
-      });
+    _searchController.addListener(_filterLaundries);
+  }
+
+  void _filterLaundries() {
+    final query = _searchController.text.toLowerCase();
+    setState(() {
+      filteredLaundries = allLaundries
+          .where((l) => l.title.toLowerCase().contains(query))
+          .toList();
     });
   }
 
   @override
   void dispose() {
+    _searchController.removeListener(_filterLaundries);
     _searchController.dispose();
     super.dispose();
   }
@@ -147,23 +234,26 @@ class _HomeScreenContentState extends State<HomeScreenContent> {
         title: _buildCustomAppBar(),
         automaticallyImplyLeading: false,
       ),
-      body: NestedScrollView(
-        headerSliverBuilder: (context, innerBoxIsScrolled) {
-          return [
-            SliverToBoxAdapter(child: _buildSearchBar()),
-            SliverToBoxAdapter(child: _buildPaymentSection(context)),
-          ];
-        },
-        body: ListView.builder(
-          padding: const EdgeInsets.all(16.0),
-          itemCount: filteredLaundries.length,
-          itemBuilder: (context, index) {
-            final laundry = filteredLaundries[index];
-            return Padding(
-              padding: const EdgeInsets.only(bottom: 16.0),
-              child: _buildLaundryCard(context, laundry),
-            );
+      body: RefreshIndicator(
+        onRefresh: widget.onRefresh,
+        child: NestedScrollView(
+          headerSliverBuilder: (context, innerBoxIsScrolled) {
+            return [
+              SliverToBoxAdapter(child: _buildSearchBar()),
+              SliverToBoxAdapter(child: _buildPaymentSection(context)),
+            ];
           },
+          body: ListView.builder(
+            padding: const EdgeInsets.all(16.0),
+            itemCount: filteredLaundries.length,
+            itemBuilder: (context, index) {
+              final laundry = filteredLaundries[index];
+              return Padding(
+                padding: const EdgeInsets.only(bottom: 16.0),
+                child: _buildLaundryCard(context, laundry),
+              );
+            },
+          ),
         ),
       ),
     );
@@ -211,17 +301,20 @@ class _HomeScreenContentState extends State<HomeScreenContent> {
         ),
       );
 
-  // --- FUNGSI PEMBAYARAN WHATSAPP ADA DI SINI ---
   Widget _buildPaymentSection(BuildContext context) {
-    // GANTI DENGAN NOMOR WA ADMIN LAUNDRY ANDA
-    const String adminPhoneNumber =
-        '6283826905017'; // Awali dengan 62, tanpa + atau 0
-    const double totalAmount = 35000;
+    if (widget.isBillingLoading) {
+      return const Padding(
+        padding: EdgeInsets.all(16.0),
+        child: Center(child: CircularProgressIndicator()),
+      );
+    }
+    if (widget.totalBilling <= 0) {
+      return const SizedBox.shrink();
+    }
+    const String adminPhoneNumber = '6283826905017';
     final String customerName = widget.user.name;
-
-    // Pesan yang akan muncul otomatis di WhatsApp
     final String message =
-        'Halo, saya ingin melakukan pembayaran laundry atas nama *$customerName* dengan total tagihan *Rp ${totalAmount.toStringAsFixed(0)}*.';
+        'Halo, saya ingin melakukan pembayaran laundry atas nama *$customerName* dengan total tagihan *Rp ${widget.totalBilling.toStringAsFixed(0)}*.';
 
     return Card(
       margin: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 8.0),
@@ -239,7 +332,7 @@ class _HomeScreenContentState extends State<HomeScreenContent> {
                       style:
                           TextStyle(color: Colors.grey.shade600, fontSize: 14)),
                   const SizedBox(height: 4),
-                  Text('Rp ${totalAmount.toStringAsFixed(0)}',
+                  Text('Rp ${widget.totalBilling.toStringAsFixed(0)}',
                       style: TextStyle(
                           fontSize: 22,
                           fontWeight: FontWeight.bold,
@@ -249,17 +342,13 @@ class _HomeScreenContentState extends State<HomeScreenContent> {
             ),
             ElevatedButton(
               onPressed: () async {
-                // Buat URL untuk membuka WhatsApp
                 final Uri whatsappUrl = Uri.parse(
                   'https://wa.me/$adminPhoneNumber?text=${Uri.encodeComponent(message)}',
                 );
-
-                // Coba buka URL
                 if (await canLaunchUrl(whatsappUrl)) {
                   await launchUrl(whatsappUrl,
                       mode: LaunchMode.externalApplication);
                 } else {
-                  // Tampilkan pesan error jika WhatsApp tidak terinstal
                   if (context.mounted) {
                     ScaffoldMessenger.of(context).showSnackBar(
                       const SnackBar(
@@ -287,12 +376,14 @@ class _HomeScreenContentState extends State<HomeScreenContent> {
   Widget _buildLaundryCard(BuildContext context, Laundry laundry) =>
       GestureDetector(
         onTap: () => Navigator.push(
-            context,
-            MaterialPageRoute(
-                builder: (_) => LaundryDetailScreen(
-                      laundry: laundry,
-                      user: widget.user,
-                    ))),
+          context,
+          MaterialPageRoute(
+            builder: (_) => LaundryDetailScreen(
+              laundry: laundry,
+              user: widget.user,
+            ),
+          ),
+        ),
         child: Card(
           clipBehavior: Clip.antiAlias,
           shape:
@@ -302,14 +393,17 @@ class _HomeScreenContentState extends State<HomeScreenContent> {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Image.asset(laundry.imagePath,
+              Image.asset(
+                laundry.imagePath,
+                height: 120,
+                width: double.infinity,
+                fit: BoxFit.cover,
+                errorBuilder: (c, o, s) => Container(
                   height: 120,
-                  width: double.infinity,
-                  fit: BoxFit.cover,
-                  errorBuilder: (c, o, s) => Container(
-                      height: 120,
-                      color: Colors.grey[200],
-                      child: const Center(child: Text("Gagal memuat gambar")))),
+                  color: Colors.grey[200],
+                  child: const Center(child: Text("Gagal memuat gambar")),
+                ),
+              ),
               Padding(
                 padding: const EdgeInsets.all(12),
                 child: Row(

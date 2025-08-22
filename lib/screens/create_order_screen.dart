@@ -26,7 +26,8 @@ class _CreateOrderScreenState extends State<CreateOrderScreen> {
 
   double _totalPrice = 0.0;
   double _pricePerItem = 0.0;
-  String _selectedPaymentMethod = 'wa';
+  // --- PERUBAHAN 1: Jadikan 'Bayar di Tempat (COD)' sebagai pilihan default ---
+  String _selectedPaymentMethod = 'Bayar di Tempat (COD)';
   bool _isLoading = false;
 
   @override
@@ -108,7 +109,6 @@ class _CreateOrderScreenState extends State<CreateOrderScreen> {
           ScaffoldMessenger.of(context).showSnackBar(SnackBar(
               content: Text(responseData['message']),
               backgroundColor: Colors.green));
-          // --- PERUBAHAN UTAMA: Kirim 'true' saat kembali untuk menandakan pesanan berhasil dibuat ---
           Navigator.of(context).pop(true);
         } else {
           ScaffoldMessenger.of(context).showSnackBar(
@@ -129,6 +129,12 @@ class _CreateOrderScreenState extends State<CreateOrderScreen> {
 
   @override
   Widget build(BuildContext context) {
+    // --- PERUBAHAN 2: Daftar metode pembayaran diperbarui ---
+    final List<String> paymentMethods = [
+      'Bayar di Tempat (COD)',
+      'Transfer via WhatsApp'
+    ];
+
     return Scaffold(
       appBar: AppBar(title: Text('Pesan Layanan ${widget.serviceTitle}')),
       body: Form(
@@ -187,6 +193,8 @@ class _CreateOrderScreenState extends State<CreateOrderScreen> {
                 style:
                     const TextStyle(fontSize: 20, fontWeight: FontWeight.bold)),
             const SizedBox(height: 20),
+
+            // --- PERUBAHAN 3: Dropdown menggunakan daftar baru ---
             DropdownButtonFormField<String>(
               value: _selectedPaymentMethod,
               decoration: InputDecoration(
@@ -197,11 +205,17 @@ class _CreateOrderScreenState extends State<CreateOrderScreen> {
                     borderRadius: BorderRadius.circular(12),
                     borderSide: BorderSide.none),
               ),
-              items: ['Whatspp']
-                  .map(
-                      (v) => DropdownMenuItem<String>(value: v, child: Text(v)))
+              items: paymentMethods
+                  .map((String value) => DropdownMenuItem<String>(
+                        value: value,
+                        child: Text(value),
+                      ))
                   .toList(),
-              onChanged: (v) => setState(() => _selectedPaymentMethod = v!),
+              onChanged: (String? newValue) {
+                if (newValue != null) {
+                  setState(() => _selectedPaymentMethod = newValue);
+                }
+              },
             ),
           ],
         ),

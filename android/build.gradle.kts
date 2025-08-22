@@ -1,3 +1,16 @@
+// File: android/build.gradle.kts
+
+buildscript {
+    repositories {
+        google()
+        mavenCentral()
+    }
+    dependencies {
+        // Baris ini mendaftarkan plugin Firebase ke proyek Anda
+        classpath("com.google.gms:google-services:4.4.1")
+    }
+}
+
 allprojects {
     repositories {
         google()
